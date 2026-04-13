@@ -13,6 +13,28 @@ public class EnemyWaves
     public GameObject wave;
 }
 
+[System.Serializable]
+public class LaserSpawnConfig
+{
+    [Tooltip("이 레이저 비행선이 등장할 시간(초)")]
+    public float timeToStart;
+    
+    [Tooltip("가로(X) 스폰 위치 (0이면 정중앙, 마이너스는 왼쪽, 플러스는 오른쪽)")]
+    public float spawnXPosition = 0f;
+
+    [Tooltip("스폰될 레이저 전함(Enemy_LaserShip) 프리팹")]
+    public GameObject laserShipPrefab;
+}
+
+[System.Serializable]
+public class GridStrikeConfig
+{
+    [Tooltip("이 장판 폭격 패턴이 등장할 시간(초)")]
+    public float timeToStart;
+
+    [Tooltip("X: 타일번호(1~16), Y: 각도(-90=아래, 0=오른쪽, 45=대각선 등)")]
+    public Vector2[] targetTilesAndAngles;
+}
 #endregion
 
 public class LevelController : MonoBehaviour {
@@ -29,8 +51,11 @@ public class LevelController : MonoBehaviour {
 
     Camera mainCamera;   
 
+    [Header("🎮 Global Game Settings (전체 난이도 관리)")]
+    [Tooltip("모든 적 패턴(장판 폭격 포함)이 시작되기 전, 맨 처음 주어지는 준비 시간(초)입니다! 여기서 조절하세요.")]
+    public float globalStartDelay = 5f; 
+
     [Header("Evasion Spawning System")]
-    public float globalStartDelay = 5f; // 모든 패턴의 시작 시간 딜레이 (게임 시작 후 n초 대기)
     public bool enableRandomSpawning = true;
     public bool disableOriginalWaves = false; // 기본 웨이브 시스템 끄기 (요청에 따라 기본 웨이브 켬)
     public bool spawnOriginalWavesFromBottom = true; // 기본 웨이브를 뒤집어서 뒤에서도 생성할지 여부
@@ -46,12 +71,30 @@ public class LevelController : MonoBehaviour {
     public float wallObstacleSpeed = 8f;
     public float wallObstacleSpacing = 2.5f; // 장애물 사이의 간격
 
-    [Header("Laser Pattern System")]
+    [Header("Laser Ship Waves (위치 고정 시스템)")]
+    public LaserSpawnConfig[] laserWaves;
+
+    [Header("16-Tile Grid Strike System (장판 폭격기)")]
+    [Tooltip("원하는 시간대에 원하는 타일 좌표를 적어 넣으세요.")]
+    public GridStrikeConfig[] gridStrikes;
+    [Tooltip("에디터 Tools에서 만든 경고 타일(GridStrike_Warning)을 넣으세요")]
+    public GameObject gridWarningPrefab;
+    [Tooltip("에디터 Tools에서 만든 폭발 레이저(GridStrike_Laser)를 넣으세요")]
+    public GameObject gridLaserPrefab;
+    [Tooltip("경고가 뜬 후 폭격까지 걸리는 시간(초)")]
+    public float gridWarningDuration = 1.0f;
+
+    [Header("Environmental Laser Pattern System (옵션)")]
     public bool enableLaserSpawning = false;
+    [Tooltip("경고 마크 프리팹 (빈칸이면 경고 없이 즉시 발사)")]
+    public GameObject environmentalWarningPrefab;
     [Tooltip("에디터에서 만든 레이저 프리팹을 여기에 넣어주세요")]
     public GameObject environmentalLaserPrefab;
     public float laserSpawnStartDelay = 6f;
     public float laserSpawnInterval = 4f;
+    [Tooltip("경고 후 레이저가 떨어지기까지의 시간(초)")]
+    public float environmentalWarningDuration = 1.0f;
+
 
     private void Awake()
     {
@@ -94,6 +137,113 @@ public class LevelController : MonoBehaviour {
         if (enableLaserSpawning)
         {
             StartCoroutine(LaserSpawning());
+        }
+
+        // 레이저 웨이브 처리
+        if (laserWaves != null)
+        {
+            foreach (var laserWave in laserWaves)
+            {
+                StartCoroutine(ProcessSingleLaserWave(laserWave));
+            }
+        }
+
+        // 장판 폭격(16칸) 처리
+        if (gridStrikes != null)
+        {
+            foreach (var strike in gridStrikes)
+            {
+                StartCoroutine(ProcessSingleGridStrike(strike));
+            }
+        }
+    }
+    
+    // 16칸 타일 장판 폭격 코루틴
+    IEnumerator ProcessSingleGridStrike(GridStrikeConfig config)
+    {
+        Debug.Log($"[그리드 폭격] {config.timeToStart}초 대기 시작...");
+        yield return new WaitForSeconds(globalStartDelay + config.timeToStart);
+
+        if (gridLaserPrefab == null) 
+        {
+            Debug.LogError("🚨 장판 폭격 실패! LevelController의 Grid Laser Prefab 칸이 비어있습니다. 레이저를 넣어주세요.");
+            yield break;
+        }
+
+        if (config.targetTilesAndAngles == null || config.targetTilesAndAngles.Length == 0) 
+        {
+            Debug.LogWarning("🚨 장판 폭격 취소: 타겟 타일 번호가 정해지지 않았습니다.");
+            yield break;
+        }
+
+        float minX = mainCamera.ViewportToWorldPoint(new Vector2(0, 0)).x;
+        float maxX = mainCamera.ViewportToWorldPoint(new Vector2(1, 1)).x;
+        float minY = mainCamera.ViewportToWorldPoint(new Vector2(0, 0)).y;
+        float maxY = mainCamera.ViewportToWorldPoint(new Vector2(1, 1)).y;
+
+        float cellWidth = (maxX - minX) / 4f;
+        float cellHeight = (maxY - minY) / 4f;
+
+        List<GameObject> activeWarnings = new List<GameObject>();
+
+        // 경고 프리팹이 등록되어 있다면 (원래의 2단계 방식)
+        if (gridWarningPrefab != null)
+        {
+            foreach (Vector2 tileData in config.targetTilesAndAngles)
+            {
+                int tileNumber = (int)tileData.x;
+                float laserAngle = tileData.y;
+                
+                int index = Mathf.Clamp(tileNumber - 1, 0, 15);
+                int row = index / 4; int col = index % 4;
+                float xPos = minX + (col * cellWidth) + (cellWidth / 2f);
+                float yPos = maxY - (row * cellHeight) - (cellHeight / 2f);
+
+                // 경고 장판도 레이저가 나갈 궤적(각도)과 동일하게 회전시켜서 발사합니다!
+                // 1칸 크기에 네모낳게 찌그러뜨리던 코드를 제거하여, 유저의 프리팹 원형(길쭉한 궤도 등)을 보존합니다.
+                GameObject warning = Instantiate(gridWarningPrefab, new Vector3(xPos, yPos, 0), Quaternion.Euler(0, 0, laserAngle));
+                activeWarnings.Add(warning);
+            }
+            yield return new WaitForSeconds(gridWarningDuration);
+        }
+
+        // 실제 레이저 폭격 발사 (경고가 없으면 대기 없이 즉시 발사됨)
+        foreach (Vector2 tileData in config.targetTilesAndAngles)
+        {
+            int tileNumber = (int)tileData.x;
+            float laserAngle = tileData.y;
+
+            int index = Mathf.Clamp(tileNumber - 1, 0, 15);
+            int row = index / 4; int col = index % 4;
+            float xPos = minX + (col * cellWidth) + (cellWidth / 2f);
+            float yPos = maxY - (row * cellHeight) - (cellHeight / 2f);
+
+            // 기획자가 설정한 Z축 방향(레이저 각도)를 적용하여 위아래/좌우 혼합 십자 포화 등을 구현!
+            Instantiate(gridLaserPrefab, new Vector3(xPos, yPos, 0), Quaternion.Euler(0, 0, laserAngle));
+        }
+
+        // 생성되었던 경고판 파괴
+        foreach (GameObject w in activeWarnings)
+        {
+            if (w != null) Destroy(w);
+        }
+    }
+
+
+    // 개별 레이저 비행선 웨이브 스폰
+    IEnumerator ProcessSingleLaserWave(LaserSpawnConfig config)
+    {
+        // 글로벌 딜레이 + 개별 딜레이만큼 대기
+        yield return new WaitForSeconds(globalStartDelay + config.timeToStart);
+
+        if (config.laserShipPrefab != null && Player.instance != null)
+        {
+            // 화면 밖 맨 위(Top) Y 좌표 계산
+            float maxY = mainCamera.ViewportToWorldPoint(new Vector2(1, 1)).y + 2f;
+            Vector2 spawnPos = new Vector2(config.spawnXPosition, maxY);
+            
+            // 프리팹이 갖고 있는 고유 회전값 그대로 스폰 (픽셀아트 때문에 이미 -90도가 프리팹에 들어있음)
+            Instantiate(config.laserShipPrefab, spawnPos, config.laserShipPrefab.transform.rotation);
         }
     }
     
@@ -306,37 +456,43 @@ public class LevelController : MonoBehaviour {
         {
             if (environmentalLaserPrefab != null)
             {
-                // 플레이어가 있는 타겟 위치나 랜덤 위치로 레이저 발사
                 float minX = mainCamera.ViewportToWorldPoint(new Vector2(0, 0)).x + 1f;
                 float maxX = mainCamera.ViewportToWorldPoint(new Vector2(1, 1)).x - 1f;
-                float maxY = mainCamera.ViewportToWorldPoint(new Vector2(1, 1)).y + 2f;
-
-                // 플레이어가 살아있다면 플레이어 머리 위에서 발사, 아니면 랜덤 위치
+                
                 float targetX = Random.Range(minX, maxX);
-                if (Player.instance != null)
+                if (Player.instance != null && Random.value > 0.5f) 
                 {
-                    // 50% 확률로 플레이어 위치에 발사
-                    if (Random.value > 0.5f) 
-                        targetX = Player.instance.transform.position.x;
+                    targetX = Player.instance.transform.position.x;
                 }
 
-                // 이동을 안하고 제자리에 있으려면 중앙(Y좌표 0 언저리)에 나타나야 전체 화면을 세로로 가를 수 있습니다.
                 float centerY = (mainCamera.ViewportToWorldPoint(new Vector2(0, 0)).y + mainCamera.ViewportToWorldPoint(new Vector2(1, 1)).y) / 2f;
                 Vector2 spawnPos = new Vector2(targetX, centerY);
                 
-                // 위에서 아래로 쏠 수 있도록 Z축 -90도 회전하여 스폰
-                GameObject spawnedLaser = Instantiate(environmentalLaserPrefab, spawnPos, Quaternion.Euler(0, 0, -90f));
-                
-                // 이동 스크립트가 있다면 없애서 멈춰있게 만듭니다.
-                DirectMoving mover = spawnedLaser.GetComponent<DirectMoving>();
-                if (mover != null)
-                {
-                    Destroy(mover);
-                }
+                // 동시에 여러 레이저가 겹쳐서 진행될 수 있도록 별도 코루틴으로 분리 (간격 대기에 영향 안 주게)
+                StartCoroutine(SpawnSingleEnvironmentalLaser(spawnPos));
             }
             
             yield return new WaitForSeconds(laserSpawnInterval);
         }
+    }
+
+    IEnumerator SpawnSingleEnvironmentalLaser(Vector2 spawnPos)
+    {
+        GameObject warning = null;
+
+        // 경고 시스템이 셋팅되어 있다면 먼저 발동!
+        if (environmentalWarningPrefab != null)
+        {
+            warning = Instantiate(environmentalWarningPrefab, spawnPos, Quaternion.Euler(0, 0, -90f));
+            yield return new WaitForSeconds(environmentalWarningDuration);
+            if (warning != null) Destroy(warning);
+        }
+
+        // 지연 시간 후 진짜 레이저 투하
+        GameObject spawnedLaser = Instantiate(environmentalLaserPrefab, spawnPos, Quaternion.Euler(0, 0, -90f));
+        
+        DirectMoving mover = spawnedLaser.GetComponent<DirectMoving>();
+        if (mover != null) Destroy(mover);
     }
 }
 
