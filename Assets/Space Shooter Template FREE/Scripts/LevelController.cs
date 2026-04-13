@@ -46,6 +46,13 @@ public class LevelController : MonoBehaviour {
     public float wallObstacleSpeed = 8f;
     public float wallObstacleSpacing = 2.5f; // 장애물 사이의 간격
 
+    [Header("Laser Pattern System")]
+    public bool enableLaserSpawning = false;
+    [Tooltip("에디터에서 만든 레이저 프리팹을 여기에 넣어주세요")]
+    public GameObject environmentalLaserPrefab;
+    public float laserSpawnStartDelay = 6f;
+    public float laserSpawnInterval = 4f;
+
     private void Awake()
     {
         // PC 빌드(exe 파일) 실행 시 해상도를 강제로 720 x 960 세로형 창모드로 고정합니다.
@@ -82,6 +89,11 @@ public class LevelController : MonoBehaviour {
         if (enableWallSpawning)
         {
             StartCoroutine(WallSpawning());
+        }
+
+        if (enableLaserSpawning)
+        {
+            StartCoroutine(LaserSpawning());
         }
     }
     
@@ -283,6 +295,47 @@ public class LevelController : MonoBehaviour {
 
             // 첫 스폰 이후로는 3초마다 반복
             yield return new WaitForSeconds(wallSpawnInterval);
+        }
+    }
+
+    IEnumerator LaserSpawning()
+    {
+        yield return new WaitForSeconds(laserSpawnStartDelay);
+        
+        while (true)
+        {
+            if (environmentalLaserPrefab != null)
+            {
+                // 플레이어가 있는 타겟 위치나 랜덤 위치로 레이저 발사
+                float minX = mainCamera.ViewportToWorldPoint(new Vector2(0, 0)).x + 1f;
+                float maxX = mainCamera.ViewportToWorldPoint(new Vector2(1, 1)).x - 1f;
+                float maxY = mainCamera.ViewportToWorldPoint(new Vector2(1, 1)).y + 2f;
+
+                // 플레이어가 살아있다면 플레이어 머리 위에서 발사, 아니면 랜덤 위치
+                float targetX = Random.Range(minX, maxX);
+                if (Player.instance != null)
+                {
+                    // 50% 확률로 플레이어 위치에 발사
+                    if (Random.value > 0.5f) 
+                        targetX = Player.instance.transform.position.x;
+                }
+
+                // 이동을 안하고 제자리에 있으려면 중앙(Y좌표 0 언저리)에 나타나야 전체 화면을 세로로 가를 수 있습니다.
+                float centerY = (mainCamera.ViewportToWorldPoint(new Vector2(0, 0)).y + mainCamera.ViewportToWorldPoint(new Vector2(1, 1)).y) / 2f;
+                Vector2 spawnPos = new Vector2(targetX, centerY);
+                
+                // 위에서 아래로 쏠 수 있도록 Z축 -90도 회전하여 스폰
+                GameObject spawnedLaser = Instantiate(environmentalLaserPrefab, spawnPos, Quaternion.Euler(0, 0, -90f));
+                
+                // 이동 스크립트가 있다면 없애서 멈춰있게 만듭니다.
+                DirectMoving mover = spawnedLaser.GetComponent<DirectMoving>();
+                if (mover != null)
+                {
+                    Destroy(mover);
+                }
+            }
+            
+            yield return new WaitForSeconds(laserSpawnInterval);
         }
     }
 }
