@@ -13,18 +13,6 @@ public class EnemyWaves
     public GameObject wave;
 }
 
-[System.Serializable]
-public class LaserSpawnConfig
-{
-    [Tooltip("이 레이저 비행선이 등장할 시간(초)")]
-    public float timeToStart;
-    
-    [Tooltip("가로(X) 스폰 위치 (0이면 정중앙, 마이너스는 왼쪽, 플러스는 오른쪽)")]
-    public float spawnXPosition = 0f;
-
-    [Tooltip("스폰될 레이저 전함(Enemy_LaserShip) 프리팹")]
-    public GameObject laserShipPrefab;
-}
 
 [System.Serializable]
 public class GridStrikeConfig
@@ -71,8 +59,7 @@ public class LevelController : MonoBehaviour {
     public float wallObstacleSpeed = 8f;
     public float wallObstacleSpacing = 2.5f; // 장애물 사이의 간격
 
-    [Header("Laser Ship Waves (위치 고정 시스템)")]
-    public LaserSpawnConfig[] laserWaves;
+
 
     [Header("16-Tile Grid Strike System (장판 폭격기)")]
     [Tooltip("원하는 시간대에 원하는 타일 좌표를 적어 넣으세요.")]
@@ -139,14 +126,7 @@ public class LevelController : MonoBehaviour {
             StartCoroutine(LaserSpawning());
         }
 
-        // 레이저 웨이브 처리
-        if (laserWaves != null)
-        {
-            foreach (var laserWave in laserWaves)
-            {
-                StartCoroutine(ProcessSingleLaserWave(laserWave));
-            }
-        }
+
 
         // 장판 폭격(16칸) 처리
         if (gridStrikes != null)
@@ -230,22 +210,6 @@ public class LevelController : MonoBehaviour {
     }
 
 
-    // 개별 레이저 비행선 웨이브 스폰
-    IEnumerator ProcessSingleLaserWave(LaserSpawnConfig config)
-    {
-        // 글로벌 딜레이 + 개별 딜레이만큼 대기
-        yield return new WaitForSeconds(globalStartDelay + config.timeToStart);
-
-        if (config.laserShipPrefab != null && Player.instance != null)
-        {
-            // 화면 밖 맨 위(Top) Y 좌표 계산
-            float maxY = mainCamera.ViewportToWorldPoint(new Vector2(1, 1)).y + 2f;
-            Vector2 spawnPos = new Vector2(config.spawnXPosition, maxY);
-            
-            // 프리팹이 갖고 있는 고유 회전값 그대로 스폰 (픽셀아트 때문에 이미 -90도가 프리팹에 들어있음)
-            Instantiate(config.laserShipPrefab, spawnPos, config.laserShipPrefab.transform.rotation);
-        }
-    }
     
     //Create a new wave after a delay
     IEnumerator CreateEnemyWave(float delay, GameObject Wave, bool inverted) 

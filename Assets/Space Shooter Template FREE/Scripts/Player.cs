@@ -10,6 +10,10 @@ using UnityEngine.UI;
 public class Player : MonoBehaviour
 {
     public GameObject destructionFX;
+    
+    [Tooltip("비행기의 최대 체력")]
+    public int maxHealth = 10;
+    
     [Tooltip("비행기의 체력 (0이 되면 파괴됨)")]
     public int health = 10;
 
@@ -22,6 +26,9 @@ public class Player : MonoBehaviour
         if (instance == null) 
             instance = this;
         spriteRenderer = GetComponent<SpriteRenderer>();
+        
+        // 게임 시작 시 최대 체력으로 꽉 채워줍니다.
+        health = maxHealth;
     }
 
     //method for damage proceccing by 'Player'
