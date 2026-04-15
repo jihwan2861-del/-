@@ -465,6 +465,17 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 114004447756405556, guid: 01cf4a33fc66cde4abc060ccfeadeb5a,
         type: 3}
+      propertyPath: safeZonePrefab
+      value: 
+      objectReference: {fileID: 4493809509106277095, guid: fd6adb81fc2ede341a4922bf9935d78f,
+        type: 3}
+    - target: {fileID: 114004447756405556, guid: 01cf4a33fc66cde4abc060ccfeadeb5a,
+        type: 3}
+      propertyPath: frenzyStartTime
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 114004447756405556, guid: 01cf4a33fc66cde4abc060ccfeadeb5a,
+        type: 3}
       propertyPath: gridLaserPrefab
       value: 
       objectReference: {fileID: 6797077087356842565, guid: 061389246b21ef54a8e89450e4b68064,
@@ -477,7 +488,7 @@ PrefabInstance:
     - target: {fileID: 114004447756405556, guid: 01cf4a33fc66cde4abc060ccfeadeb5a,
         type: 3}
       propertyPath: randomEnemySpeed
-      value: 7
+      value: -5.33
       objectReference: {fileID: 0}
     - target: {fileID: 114004447756405556, guid: 01cf4a33fc66cde4abc060ccfeadeb5a,
         type: 3}
@@ -517,13 +528,18 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 114004447756405556, guid: 01cf4a33fc66cde4abc060ccfeadeb5a,
         type: 3}
+      propertyPath: laserPatternInterval
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 114004447756405556, guid: 01cf4a33fc66cde4abc060ccfeadeb5a,
+        type: 3}
       propertyPath: enableEndlessPatterns
       value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 114004447756405556, guid: 01cf4a33fc66cde4abc060ccfeadeb5a,
         type: 3}
       propertyPath: enemyWaves.Array.size
-      value: 18
+      value: 12
       objectReference: {fileID: 0}
     - target: {fileID: 114004447756405556, guid: 01cf4a33fc66cde4abc060ccfeadeb5a,
         type: 3}
@@ -543,8 +559,19 @@ PrefabInstance:
     - target: {fileID: 114004447756405556, guid: 01cf4a33fc66cde4abc060ccfeadeb5a,
         type: 3}
       propertyPath: gridStrikes.Array.size
-      value: 2
+      value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 114004447756405556, guid: 01cf4a33fc66cde4abc060ccfeadeb5a,
+        type: 3}
+      propertyPath: laserPatternStartDelay
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 114004447756405556, guid: 01cf4a33fc66cde4abc060ccfeadeb5a,
+        type: 3}
+      propertyPath: interactionButtonPrefab
+      value: 
+      objectReference: {fileID: 5427154855111376889, guid: 7ab31736db37efd428b7fccb0168f20a,
+        type: 3}
     - target: {fileID: 114004447756405556, guid: 01cf4a33fc66cde4abc060ccfeadeb5a,
         type: 3}
       propertyPath: endlessEnemyWaveInterval
@@ -583,6 +610,11 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 1947974370059188, guid: 17753a118a68d254dbd46f3c22171922,
         type: 3}
+    - target: {fileID: 114004447756405556, guid: 01cf4a33fc66cde4abc060ccfeadeb5a,
+        type: 3}
+      propertyPath: laserPatternPrefabs.Array.size
+      value: 9
+      objectReference: {fileID: 0}
     - target: {fileID: 114004447756405556, guid: 01cf4a33fc66cde4abc060ccfeadeb5a,
         type: 3}
       propertyPath: customEnemyPrefabs.Array.data[0]
@@ -624,6 +656,60 @@ PrefabInstance:
       propertyPath: endlessPatternPrefabs.Array.size
       value: 2
       objectReference: {fileID: 0}
+    - target: {fileID: 114004447756405556, guid: 01cf4a33fc66cde4abc060ccfeadeb5a,
+        type: 3}
+      propertyPath: laserPatternPrefabs.Array.data[0]
+      value: 
+      objectReference: {fileID: 2020991861450138195, guid: 0b8f273b6fd31194591792765fbe3d4d,
+        type: 3}
+    - target: {fileID: 114004447756405556, guid: 01cf4a33fc66cde4abc060ccfeadeb5a,
+        type: 3}
+      propertyPath: laserPatternPrefabs.Array.data[1]
+      value: 
+      objectReference: {fileID: 3663228080437020539, guid: 25a6ffe9c52ffb64496feeb7f2343ca7,
+        type: 3}
+    - target: {fileID: 114004447756405556, guid: 01cf4a33fc66cde4abc060ccfeadeb5a,
+        type: 3}
+      propertyPath: laserPatternPrefabs.Array.data[2]
+      value: 
+      objectReference: {fileID: 7964999317648650255, guid: c45f3363bd8555e4a90b93dc8c6391c0,
+        type: 3}
+    - target: {fileID: 114004447756405556, guid: 01cf4a33fc66cde4abc060ccfeadeb5a,
+        type: 3}
+      propertyPath: laserPatternPrefabs.Array.data[3]
+      value: 
+      objectReference: {fileID: 7701822112951921056, guid: 4b0b484aaeaad8e4a82bfd05feb1c427,
+        type: 3}
+    - target: {fileID: 114004447756405556, guid: 01cf4a33fc66cde4abc060ccfeadeb5a,
+        type: 3}
+      propertyPath: laserPatternPrefabs.Array.data[4]
+      value: 
+      objectReference: {fileID: 7332403248913460301, guid: 6d3c156df25975646847cf3ac2f2a38b,
+        type: 3}
+    - target: {fileID: 114004447756405556, guid: 01cf4a33fc66cde4abc060ccfeadeb5a,
+        type: 3}
+      propertyPath: laserPatternPrefabs.Array.data[5]
+      value: 
+      objectReference: {fileID: 2672558063544216962, guid: 6899e50c7cb9dca42a230160dbebce38,
+        type: 3}
+    - target: {fileID: 114004447756405556, guid: 01cf4a33fc66cde4abc060ccfeadeb5a,
+        type: 3}
+      propertyPath: laserPatternPrefabs.Array.data[6]
+      value: 
+      objectReference: {fileID: 1927208500936088772, guid: 9dd6f7a9e9073144aa862763092649d5,
+        type: 3}
+    - target: {fileID: 114004447756405556, guid: 01cf4a33fc66cde4abc060ccfeadeb5a,
+        type: 3}
+      propertyPath: laserPatternPrefabs.Array.data[7]
+      value: 
+      objectReference: {fileID: 4730948169682322785, guid: 7ec89db21aec94b46a20727c80f579b4,
+        type: 3}
+    - target: {fileID: 114004447756405556, guid: 01cf4a33fc66cde4abc060ccfeadeb5a,
+        type: 3}
+      propertyPath: laserPatternPrefabs.Array.data[8]
+      value: 
+      objectReference: {fileID: 3011148023377321845, guid: d148154532457a34f84e3fa9462fa60d,
+        type: 3}
     - target: {fileID: 114004447756405556, guid: 01cf4a33fc66cde4abc060ccfeadeb5a,
         type: 3}
       propertyPath: endlessPatternPrefabs.Array.data[0]
@@ -764,7 +850,7 @@ PrefabInstance:
     - target: {fileID: 114004447756405556, guid: 01cf4a33fc66cde4abc060ccfeadeb5a,
         type: 3}
       propertyPath: gridStrikes.Array.data[0].targetTilesAndAngles.Array.size
-      value: 2
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 114004447756405556, guid: 01cf4a33fc66cde4abc060ccfeadeb5a,
         type: 3}
@@ -774,7 +860,7 @@ PrefabInstance:
     - target: {fileID: 114004447756405556, guid: 01cf4a33fc66cde4abc060ccfeadeb5a,
         type: 3}
       propertyPath: gridStrikes.Array.data[0].targetTilesAndAngles.Array.data[0].x
-      value: 2
+      value: 6
       objectReference: {fileID: 0}
     - target: {fileID: 114004447756405556, guid: 01cf4a33fc66cde4abc060ccfeadeb5a,
         type: 3}
@@ -784,7 +870,7 @@ PrefabInstance:
     - target: {fileID: 114004447756405556, guid: 01cf4a33fc66cde4abc060ccfeadeb5a,
         type: 3}
       propertyPath: gridStrikes.Array.data[0].targetTilesAndAngles.Array.data[1].x
-      value: 3
+      value: 7
       objectReference: {fileID: 0}
     - target: {fileID: 114004447756405556, guid: 01cf4a33fc66cde4abc060ccfeadeb5a,
         type: 3}
@@ -1100,6 +1186,7 @@ MonoBehaviour:
   highHpColor: {r: 0, g: 0.69796896, b: 1, a: 1}
   lowHpColor: {r: 1, g: 0, b: 0, a: 1}
   itemText: {fileID: 1751858711}
+  victoryTextObj: {fileID: 0}
 --- !u!114 &1523158254
 MonoBehaviour:
   m_ObjectHideFlags: 0

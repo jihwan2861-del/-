@@ -13,6 +13,26 @@ public class PlayerUI : MonoBehaviour
     [Header("남은 아이템 (대쉬 횟수)")]
     public Text itemText;
 
+    [Header("Victory UI")]
+    public GameObject victoryTextObj;
+
+    public static PlayerUI instance;
+
+    private void Awake()
+    {
+        instance = this;
+    }
+
+    public void ShowVictory()
+    {
+        if (victoryTextObj != null)
+        {
+            victoryTextObj.SetActive(true);
+            Text t = victoryTextObj.GetComponent<Text>();
+            if (t != null) t.text = "MISSION COMPLETE!\nSAFE ZONE REACHED";
+        }
+    }
+
     void Update()
     {
         // 1. 체력바 실시간 동기화

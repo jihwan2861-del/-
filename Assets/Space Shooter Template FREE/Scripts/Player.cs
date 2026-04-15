@@ -1,24 +1,23 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.UI;
+using System.Collections;
 
 /// <summary>
-/// This script defines which sprite the 'Player" uses and its health.
+/// 비행기의 체력과 무적 상태를 관리하는 스크립트입니다.
 /// </summary>
-
 public class Player : MonoBehaviour
 {
     public GameObject destructionFX;
     
-    [Tooltip("비행기의 최대 체력")]
+    [Header("Health Settings")]
     public int maxHealth = 10;
-    
-    [Tooltip("비행기의 체력 (0이 되면 파괴됨)")]
     public int health = 10;
 
     public static Player instance; 
-    [HideInInspector] public bool isInvincible = false;
+    
+    [Header("Invincibility Flags")]
+    [HideInInspector] public bool isInvincible = false;      // 대쉬 등 일반 무적
+    [HideInInspector] public bool safeZoneInvincible = false; // 세이프존 무적
+
     private SpriteRenderer spriteRenderer;
 
     private void Awake()
@@ -26,15 +25,13 @@ public class Player : MonoBehaviour
         if (instance == null) 
             instance = this;
         spriteRenderer = GetComponent<SpriteRenderer>();
-        
-        // 게임 시작 시 최대 체력으로 꽉 채워줍니다.
         health = maxHealth;
     }
 
-    //method for damage proceccing by 'Player'
     public void GetDamage(int damage)   
     {
-        if (isInvincible) return; // 대쉬 중 무적 처리
+        // 대쉬 중이거나 세이프존 안에 있으면 무시함
+        if (isInvincible || safeZoneInvincible) return; 
         
         health -= damage;
         if (health <= 0)
@@ -47,45 +44,28 @@ public class Player : MonoBehaviour
         }
     }    
 
-    // 피격 시 빨간색으로 깜빡이는 효과 코루틴
     IEnumerator DamageFlash()
     {
         if (spriteRenderer != null) spriteRenderer.color = Color.red;
         yield return new WaitForSeconds(0.2f);
-        // 대쉬 중(무적)이 아닐 때만 원래 색으로 복구 (대쉬의 노란색 덮어쓰기 방지)
-        if (spriteRenderer != null && !isInvincible) spriteRenderer.color = Color.white;
+        if (spriteRenderer != null && !isInvincible && !safeZoneInvincible) 
+            spriteRenderer.color = Color.white;
     }
 
-    // 일정 시간 무적 부여 코루틴
     public IEnumerator DashInvincibility(float duration)
     {
         isInvincible = true;
         if (spriteRenderer != null) spriteRenderer.color = Color.yellow;
         yield return new WaitForSeconds(duration);
-        if (spriteRenderer != null) spriteRenderer.color = Color.white;
+        if (spriteRenderer != null && !safeZoneInvincible) 
+            spriteRenderer.color = Color.white;
         isInvincible = false;
     }
 
-    //'Player's' destruction procedure
     void Destruction()
     {
-        Instantiate(destructionFX, transform.position, Quaternion.identity); //generating destruction visual effect and destroying the 'Player' object
+        if (destructionFX != null)
+            Instantiate(destructionFX, transform.position, Quaternion.identity);
         Destroy(gameObject);
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

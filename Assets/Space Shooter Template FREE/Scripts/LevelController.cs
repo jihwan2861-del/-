@@ -13,16 +13,6 @@ public class EnemyWaves
     public GameObject wave;
 }
 
-
-[System.Serializable]
-public class GridStrikeConfig
-{
-    [Tooltip("이 장판 폭격 패턴이 등장할 시간(초)")]
-    public float timeToStart;
-
-    [Tooltip("X: 타일번호(1~16), Y: 각도(-90=아래, 0=오른쪽, 45=대각선 등)")]
-    public Vector2[] targetTilesAndAngles;
-}
 #endregion
 
 public class LevelController : MonoBehaviour {
@@ -61,26 +51,23 @@ public class LevelController : MonoBehaviour {
 
 
 
-    [Header("16-Tile Grid Strike System (장판 폭격기)")]
-    [Tooltip("원하는 시간대에 원하는 타일 좌표를 적어 넣으세요.")]
-    public GridStrikeConfig[] gridStrikes;
-    [Tooltip("에디터 Tools에서 만든 경고 타일(GridStrike_Warning)을 넣으세요")]
-    public GameObject gridWarningPrefab;
-    [Tooltip("에디터 Tools에서 만든 폭발 레이저(GridStrike_Laser)를 넣으세요")]
-    public GameObject gridLaserPrefab;
-    [Tooltip("경고가 뜬 후 폭격까지 걸리는 시간(초)")]
-    public float gridWarningDuration = 1.0f;
+    [Header("Endless Laser Patterns (레이저 패턴 무한 랜덤)")]
+    [Tooltip("패턴 메이커 툴로 구워낸 레이저 프리팹을 넣으세요. 랜덤으로 나옵니다!")]
+    public GameObject[] laserPatternPrefabs;
+    [Tooltip("패턴 랜덤 스폰 시작 대기 시간 (초)")]
+    public float laserPatternStartDelay = 10f;
+    [Tooltip("다음 패턴까지의 간격 (초)")]
+    public float laserPatternInterval = 4f;
 
-    [Header("Environmental Laser Pattern System (옵션)")]
-    public bool enableLaserSpawning = false;
-    [Tooltip("경고 마크 프리팹 (빈칸이면 경고 없이 즉시 발사)")]
-    public GameObject environmentalWarningPrefab;
-    [Tooltip("에디터에서 만든 레이저 프리팹을 여기에 넣어주세요")]
-    public GameObject environmentalLaserPrefab;
-    public float laserSpawnStartDelay = 6f;
-    public float laserSpawnInterval = 4f;
-    [Tooltip("경고 후 레이저가 떨어지기까지의 시간(초)")]
-    public float environmentalWarningDuration = 1.0f;
+    [Header("Phase Frenzy Settings (60초 후 폭주 모드)")]
+    public float frenzyStartTime = 60f;
+    public bool isFrenzyPhase = false;
+    public GameObject interactionButtonPrefab;
+    public GameObject safeZonePrefab;
+    public int totalButtonsToActivate = 4;
+    private int activatedButtonsCount = 0;
+    private bool isSafeZoneActive = false;
+    private Coroutine laserCoroutine;
 
 
     private void Awake()
@@ -121,96 +108,114 @@ public class LevelController : MonoBehaviour {
             StartCoroutine(WallSpawning());
         }
 
-        if (enableLaserSpawning)
+        if (laserPatternPrefabs != null && laserPatternPrefabs.Length > 0)
         {
-            StartCoroutine(LaserSpawning());
+            laserCoroutine = StartCoroutine(EndlessLaserPatternSpawning());
         }
 
-
-
-        // 장판 폭격(16칸) 처리
-        if (gridStrikes != null)
-        {
-            foreach (var strike in gridStrikes)
-            {
-                StartCoroutine(ProcessSingleGridStrike(strike));
-            }
-        }
+        // 60초 후 폭주 모드 시작 예약
+        Invoke(nameof(StartFrenzyPhase), frenzyStartTime);
     }
-    
-    // 16칸 타일 장판 폭격 코루틴
-    IEnumerator ProcessSingleGridStrike(GridStrikeConfig config)
+
+    void StartFrenzyPhase()
     {
-        Debug.Log($"[그리드 폭격] {config.timeToStart}초 대기 시작...");
-        yield return new WaitForSeconds(globalStartDelay + config.timeToStart);
+        isFrenzyPhase = true;
+        Debug.Log("🚨 [폭주 모드 시작] 화면 초기화 후 레이저 폭발!");
 
-        if (gridLaserPrefab == null) 
+        // 1. 화면에 남아있는 모든 적 제거 (먼저 깨끗이 비웁니다)
+        GameObject[] enemies = GameObject.FindGameObjectsWithTag("Enemy");
+        foreach (GameObject enemy in enemies)
         {
-            Debug.LogError("🚨 장판 폭격 실패! LevelController의 Grid Laser Prefab 칸이 비어있습니다. 레이저를 넣어주세요.");
-            yield break;
+            Destroy(enemy);
         }
 
-        if (config.targetTilesAndAngles == null || config.targetTilesAndAngles.Length == 0) 
+        // 2. 레이저 주기를 2초로 설정하고 딜레이 없이 즉시 시작
+        laserPatternInterval = 2.0f;
+        if (laserCoroutine != null) StopCoroutine(laserCoroutine);
+        laserCoroutine = StartCoroutine(EndlessLaserPatternSpawning(true));
+
+        // 3. 버튼 4개 스폰
+        if (interactionButtonPrefab != null)
         {
-            Debug.LogWarning("🚨 장판 폭격 취소: 타겟 타일 번호가 정해지지 않았습니다.");
-            yield break;
-        }
-
-        float minX = mainCamera.ViewportToWorldPoint(new Vector2(0, 0)).x;
-        float maxX = mainCamera.ViewportToWorldPoint(new Vector2(1, 1)).x;
-        float minY = mainCamera.ViewportToWorldPoint(new Vector2(0, 0)).y;
-        float maxY = mainCamera.ViewportToWorldPoint(new Vector2(1, 1)).y;
-
-        float cellWidth = (maxX - minX) / 4f;
-        float cellHeight = (maxY - minY) / 4f;
-
-        List<GameObject> activeWarnings = new List<GameObject>();
-
-        // 경고 프리팹이 등록되어 있다면 (원래의 2단계 방식)
-        if (gridWarningPrefab != null)
-        {
-            foreach (Vector2 tileData in config.targetTilesAndAngles)
+            for (int i = 0; i < totalButtonsToActivate; i++)
             {
-                int tileNumber = (int)tileData.x;
-                float laserAngle = tileData.y;
-                
-                int index = Mathf.Clamp(tileNumber - 1, 0, 15);
-                int row = index / 4; int col = index % 4;
-                float xPos = minX + (col * cellWidth) + (cellWidth / 2f);
-                float yPos = maxY - (row * cellHeight) - (cellHeight / 2f);
-
-                // 경고 장판도 레이저가 나갈 궤적(각도)과 동일하게 회전시켜서 발사합니다!
-                // 1칸 크기에 네모낳게 찌그러뜨리던 코드를 제거하여, 유저의 프리팹 원형(길쭉한 궤도 등)을 보존합니다.
-                GameObject warning = Instantiate(gridWarningPrefab, new Vector3(xPos, yPos, 0), Quaternion.Euler(0, 0, laserAngle));
-                activeWarnings.Add(warning);
+                Vector3 spawnPos = new Vector3(
+                    Random.Range(PlayerMoving.instance.borders.minX, PlayerMoving.instance.borders.maxX),
+                    Random.Range(PlayerMoving.instance.borders.minY, PlayerMoving.instance.borders.maxY),
+                    0f
+                );
+                GameObject btn = Instantiate(interactionButtonPrefab, spawnPos, Quaternion.identity);
+                var interactScript = btn.AddComponent<InteractionPoint>();
+                interactScript.controller = this;
             }
-            yield return new WaitForSeconds(gridWarningDuration);
-        }
-
-        // 실제 레이저 폭격 발사 (경고가 없으면 대기 없이 즉시 발사됨)
-        foreach (Vector2 tileData in config.targetTilesAndAngles)
-        {
-            int tileNumber = (int)tileData.x;
-            float laserAngle = tileData.y;
-
-            int index = Mathf.Clamp(tileNumber - 1, 0, 15);
-            int row = index / 4; int col = index % 4;
-            float xPos = minX + (col * cellWidth) + (cellWidth / 2f);
-            float yPos = maxY - (row * cellHeight) - (cellHeight / 2f);
-
-            // 기획자가 설정한 Z축 방향(레이저 각도)를 적용하여 위아래/좌우 혼합 십자 포화 등을 구현!
-            Instantiate(gridLaserPrefab, new Vector3(xPos, yPos, 0), Quaternion.Euler(0, 0, laserAngle));
-        }
-
-        // 생성되었던 경고판 파괴
-        foreach (GameObject w in activeWarnings)
-        {
-            if (w != null) Destroy(w);
         }
     }
 
+    public void OnButtonActivated()
+    {
+        activatedButtonsCount++;
+        Debug.Log($"[버튼 활성화] ({activatedButtonsCount}/{totalButtonsToActivate})");
 
-    
+        if (activatedButtonsCount >= totalButtonsToActivate)
+        {
+            ActivateSafeZone();
+        }
+    }
+
+    void ActivateSafeZone()
+    {
+        if (isSafeZoneActive) return; // 이미 활성화되었으면 중복 소환 안 함
+        isSafeZoneActive = true;
+
+        Debug.Log("🏁 [미션 완료] 세이프존 활성화! 레이저 중단 및 화면 청소.");
+        
+        // 1. 레이저 스폰 중단
+        if (laserCoroutine != null) StopCoroutine(laserCoroutine);
+
+        // 2. 화면에 있는 모든 적과 레이저 제거 (최적화)
+        ClearAllEnemiesAndProjectiles();
+
+        if (safeZonePrefab != null)
+        {
+            Instantiate(safeZonePrefab, Vector3.zero, Quaternion.identity);
+        }
+    }
+
+    void ClearAllEnemiesAndProjectiles()
+    {
+        // "Enemy" 태그를 가진 모든 오브젝트 파괴
+        GameObject[] enemies = GameObject.FindGameObjectsWithTag("Enemy");
+        foreach (GameObject enemy in enemies) Destroy(enemy);
+
+        // "Projectile" 태그 등을 가진 오브젝트들도 파괴 (프리팹 설정에 따라 다를 수 있음)
+        // 만약 레이저 패턴이 별도 오브젝트라면 그것들도 찾아서 지웁니다.
+        var projectiles = GameObject.FindObjectsOfType<Projectile>();
+        foreach (var p in projectiles)
+        {
+            if (p.enemyBullet) Destroy(p.gameObject);
+        }
+    }
+
+    // 패턴 메이커 툴로 만든 프리팹을 랜덤으로 계속 소환하는 코루틴
+    IEnumerator EndlessLaserPatternSpawning(bool skipInitialDelay = false)
+    {
+        if (!skipInitialDelay)
+            yield return new WaitForSeconds(globalStartDelay + laserPatternStartDelay);
+        
+        while (true)
+        {
+            int rIndex = Random.Range(0, laserPatternPrefabs.Length);
+            GameObject selectedPrefab = laserPatternPrefabs[rIndex];
+            
+            if (selectedPrefab != null)
+            {
+                Instantiate(selectedPrefab, Vector3.zero, Quaternion.identity);
+            }
+            
+            yield return new WaitForSeconds(laserPatternInterval);
+        }
+    }
+
     //Create a new wave after a delay
     IEnumerator CreateEnemyWave(float delay, GameObject Wave, bool inverted) 
     {
@@ -221,7 +226,6 @@ public class LevelController : MonoBehaviour {
             GameObject waveInstance = Instantiate(Wave);
             if (inverted)
             {
-                // 웨이브 오브젝트를 180도 뒤집어서 위->아래 경로를 아래->위 경로로 거울 반전시킴
                 waveInstance.transform.rotation = Quaternion.Euler(0, 0, 180f);
             }
         }
@@ -276,9 +280,11 @@ public class LevelController : MonoBehaviour {
     {
         yield return new WaitForSeconds(globalStartDelay); // 시작 딜레이 통합
         
-        while (true)
+        while (!isFrenzyPhase) // 폭주 모드가 아닐 때만 스폰
         {
             yield return new WaitForSeconds(spawnInterval);
+            
+            if (isFrenzyPhase) break;
             
             GameObject prefabToSpawn = null;
             if (customEnemyPrefabs != null && customEnemyPrefabs.Length > 0)
@@ -341,8 +347,9 @@ public class LevelController : MonoBehaviour {
         // 처음 5초 딜레이 (globalStartDelay 적용)
         yield return new WaitForSeconds(globalStartDelay);
         
-        while (true)
+        while (!isFrenzyPhase)
         {
+            if (isFrenzyPhase) break;
             GameObject prefabToSpawn = null;
             if (customEnemyPrefabs != null && customEnemyPrefabs.Length > 0)
             {
@@ -412,51 +419,4 @@ public class LevelController : MonoBehaviour {
         }
     }
 
-    IEnumerator LaserSpawning()
-    {
-        yield return new WaitForSeconds(laserSpawnStartDelay);
-        
-        while (true)
-        {
-            if (environmentalLaserPrefab != null)
-            {
-                float minX = mainCamera.ViewportToWorldPoint(new Vector2(0, 0)).x + 1f;
-                float maxX = mainCamera.ViewportToWorldPoint(new Vector2(1, 1)).x - 1f;
-                
-                float targetX = Random.Range(minX, maxX);
-                if (Player.instance != null && Random.value > 0.5f) 
-                {
-                    targetX = Player.instance.transform.position.x;
-                }
-
-                float centerY = (mainCamera.ViewportToWorldPoint(new Vector2(0, 0)).y + mainCamera.ViewportToWorldPoint(new Vector2(1, 1)).y) / 2f;
-                Vector2 spawnPos = new Vector2(targetX, centerY);
-                
-                // 동시에 여러 레이저가 겹쳐서 진행될 수 있도록 별도 코루틴으로 분리 (간격 대기에 영향 안 주게)
-                StartCoroutine(SpawnSingleEnvironmentalLaser(spawnPos));
-            }
-            
-            yield return new WaitForSeconds(laserSpawnInterval);
-        }
-    }
-
-    IEnumerator SpawnSingleEnvironmentalLaser(Vector2 spawnPos)
-    {
-        GameObject warning = null;
-
-        // 경고 시스템이 셋팅되어 있다면 먼저 발동!
-        if (environmentalWarningPrefab != null)
-        {
-            warning = Instantiate(environmentalWarningPrefab, spawnPos, Quaternion.Euler(0, 0, -90f));
-            yield return new WaitForSeconds(environmentalWarningDuration);
-            if (warning != null) Destroy(warning);
-        }
-
-        // 지연 시간 후 진짜 레이저 투하
-        GameObject spawnedLaser = Instantiate(environmentalLaserPrefab, spawnPos, Quaternion.Euler(0, 0, -90f));
-        
-        DirectMoving mover = spawnedLaser.GetComponent<DirectMoving>();
-        if (mover != null) Destroy(mover);
-    }
 }
-
