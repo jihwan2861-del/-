@@ -103,6 +103,23 @@ public class PlayerMoving : MonoBehaviour {
             float vertical = Input.GetAxisRaw("Vertical");
             Vector3 moveDirection = new Vector3(horizontal, vertical, 0).normalized;
 
+            // --- [애니메이션 처리] ---
+            Animator anim = GetComponent<Animator>();
+            if (anim != null)
+            {
+                // 현재 이동 중인지 확인
+                bool isMoving = moveDirection != Vector3.zero;
+                anim.SetBool("isMoving", isMoving);
+
+                if (isMoving)
+                {
+                    // 이동 중일 때만 방향 파라미터 업데이트 (가만히 있을 때 이전 방향을 바라보게 하기 위함)
+                    anim.SetFloat("InputX", horizontal);
+                    anim.SetFloat("InputY", vertical);
+                }
+            }
+            // -------------------------
+
             // 마우스 추적 시절의 30f는 키보드 조작에는 너무 빠를 수 있어 기본 baseSpeed(15f)를 사용
             float currentSpeed = isDashing ? baseSpeed * dashSpeedMultiplier : baseSpeed;
 
@@ -111,10 +128,11 @@ public class PlayerMoving : MonoBehaviour {
                 // 1. 해당 막대 방향으로 이동
                 transform.position += moveDirection * currentSpeed * Time.deltaTime;
 
-                // 2. 비행기의 머리(위쪽)를 이동 방향으로 부드럽고 빠르게 회전
-                float angle = Mathf.Atan2(moveDirection.y, moveDirection.x) * Mathf.Rad2Deg - 90f;
-                Quaternion targetRotation = Quaternion.Euler(0, 0, angle);
-                transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRotation, 1000f * Time.deltaTime);
+                // 2. [8방향 애니메이션 사용을 위해 물리적 회전 비활성화]
+                // 8방향 스프라이트 이미지가 방향을 나타내므로, 오브젝트 자체를 회전시키면 이미지가 이상하게 돌아갑니다.
+                // float angle = Mathf.Atan2(moveDirection.y, moveDirection.x) * Mathf.Rad2Deg - 90f;
+                // Quaternion targetRotation = Quaternion.Euler(0, 0, angle);
+                // transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRotation, 1000f * Time.deltaTime);
             }
             transform.position = new Vector3    //if 'Player' crossed the movement borders, returning him back 
                 (
